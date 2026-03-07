@@ -1,0 +1,1 @@
+<view class="setting-item data-v-779b322e" bindtap="{{g}}"><text class="label data-v-779b322e">{{a}}</text><view class="right-content data-v-779b322e"><text wx:if="{{b}}" class="badge data-v-779b322e">{{c}}</text><switch wx:elif="{{d}}" class="custom-switch data-v-779b322e" checked="{{e}}" bindchange="{{f}}"/><text wx:else class="arrow data-v-779b322e">＞</text></view></view>
