@@ -1,0 +1,15 @@
+{
+  "condition": {
+    "miniprogram": {
+      "list": [
+        {
+          "name": "个人中心页面测试",
+          "pathName": "pages/user/index",
+          "query": "",
+          "scene": null,
+          "launchMode": "default"
+        }
+      ]
+    }
+  }
+}

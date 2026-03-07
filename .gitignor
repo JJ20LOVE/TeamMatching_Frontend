@@ -1,0 +1,17 @@
+# 依赖包
+node_modules/
+package-lock.json
+
+# 编译产物（uni-app 自动生成的）
+unpackage/
+dist/
+build/
+
+# 编辑器配置
+.hbuilderx/
+.vscode/
+.idea/
+
+# 系统文件
+.DS_Store
+Thumbs.db
