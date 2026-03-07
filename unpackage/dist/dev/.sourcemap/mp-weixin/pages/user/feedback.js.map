@@ -1,0 +1,1 @@
+{"version":3,"file":"feedback.js","sources":["D:/Program Files/HBuilderX/plugins/uniapp-cli-vite/uniPage:/cGFnZXMvdXNlci9mZWVkYmFjay52dWU"],"sourcesContent":["import MiniProgramPage from 'C:/Users/zheng/TeamMatching_Frontend/pages/user/feedback.vue'\nwx.createPage(MiniProgramPage)"],"names":[],"mappings":";;;;;;;AACA,GAAG,WAAW,eAAe;"}

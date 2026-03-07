@@ -1,0 +1,9 @@
+{
+  "name": "team-matching",
+  "version": "1.0.0",
+  "description": "组队小程序",
+  "dependencies": {
+    "vue": "^3.4.0"
+  }
+  
+}

@@ -1,0 +1,18 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/user/index",
+    "pages/user/profile",
+    "pages/user/auth",
+    "pages/user/my-projects",
+    "pages/user/my-favorites",
+    "pages/user/feedback"
+  ],
+  "window": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "uniapp对接Java后端",
+    "navigationBarBackgroundColor": "#f8f8f8",
+    "backgroundColor": "#f8f8f8"
+  },
+  "usingComponents": {}
+}
