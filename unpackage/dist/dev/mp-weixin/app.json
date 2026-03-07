@@ -1,0 +1,7 @@
+{
+  "pages": [
+    "pages/settings/settings",
+    "pages/index/index"
+  ],
+  "usingComponents": {}
+}
