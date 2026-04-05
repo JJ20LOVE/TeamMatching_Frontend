@@ -1,9 +1,19 @@
 {
   "pages": [
     {
-      "path": "pages/index/index",
+      "path": "pages/community/community",
       "style": {
-        "navigationBarTitleText": "首页"
+        "navigationBarTitleText": "公共社区",
+        "navigationBarBackgroundColor": "#fff",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/userProfile/userProfile",
+      "style": {
+        "navigationBarTitleText": "个人信息",
+        "navigationBarBackgroundColor": "#fff",
+        "navigationBarTextStyle": "black"
       }
     },
     {
@@ -12,5 +22,51 @@
         "navigationBarTitleText": "系统设置"
       }
     }
-  ]
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "组队匹配",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "backgroundColor": "#F5F5F5"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#007AFF",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/community/community",
+        "text": "项目广场",
+        "iconPath": "static/tabbar/home.png",
+        "selectedIconPath": "static/tabbar/home-active.png"
+      },
+      {
+        "pagePath": "pages/community/community",
+        "text": "公共社区",
+        "iconPath": "static/tabbar/community.png",
+        "selectedIconPath": "static/tabbar/community-active.png"
+      },
+      {
+        "pagePath": "pages/community/community",
+        "text": "消息",
+        "iconPath": "static/tabbar/message.png",
+        "selectedIconPath": "static/tabbar/message-active.png"
+      },
+      {
+        "pagePath": "pages/community/community",
+        "text": "个人中心",
+        "iconPath": "static/tabbar/my.png",
+        "selectedIconPath": "static/tabbar/my-active.png"
+      }
+    ],
+    "midButton": {
+      "width": "96rpx",
+      "height": "96rpx",
+      "text": "",
+      "iconPath": "static/tabbar/plus.png",
+      "selectedIconPath": "static/tabbar/plus-active.png",
+      "backgroundColor": "#007AFF"
+    }
+  }
 }

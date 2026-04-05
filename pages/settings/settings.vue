@@ -6,7 +6,7 @@
       <view class="card">
         <view class="item" @click="handleModifyPwd">
           <text class="item-label">修改密码</text>
-          <view class="item-arrow">&gt;</view>
+          <view class="item-arrow">></view>
         </view>
         <view class="item divider" @click="handleCampusAuth">
           <text class="item-label">校园身份认证</text>
@@ -32,11 +32,11 @@
       <view class="card">
         <view class="item" @click="handleClearCache">
           <text class="item-label">清除缓存</text>
-          <view class="item-arrow">&gt;</view>
+          <view class="item-arrow">></view>
         </view>
         <view class="item divider" @click="handleAboutUs">
           <text class="item-label">关于我们</text>
-          <view class="item-arrow">&gt;</view>
+          <view class="item-arrow">></view>
         </view>
       </view>
     </view>
@@ -107,9 +107,9 @@ export default {
 </script>
 
 <style scoped>
-page {
-  background-color: #f7f8fa;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Microsoft YaHei", 黑体, Arial, sans-serif;
+/* 🔥 强制全局年轻字体 */
+.settings-page, .settings-page * {
+  font-family: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif !important;
 }
 
 .settings-page {
@@ -160,7 +160,7 @@ page {
   font-weight: 500;
 }
 
-/* 开关样式：背景条为蓝色，滑块为白色 */
+/* 🔵 新消息通知开关改为ECNU蓝色 #003399 */
 .item-switch {
   transform: scale(0.9);
 }
@@ -168,12 +168,16 @@ page {
   width: 37pt !important;
   height: 20pt !important;
 }
-/* 开关背景条：与ECNU已认证一致的蓝色 #003399 */
+/* 开关开启时的背景色（蓝色） */
 ::v-deep .uni-switch-input::before {
   background-color: #003399 !important;
   border-radius: 10pt !important;
 }
-/* 开关滑块：白色 #ffffff */
+/* 开关关闭时的背景色（灰色） */
+::v-deep .uni-switch-input:not([checked])::before {
+  background-color: #e5e5e5 !important;
+}
+/* 开关滑块（白色） */
 ::v-deep .uni-switch-input::after {
   background-color: #ffffff !important;
   border-radius: 8pt !important;
@@ -187,6 +191,8 @@ page {
   margin-top: 30px;
   padding: 0;
 }
+
+/* 退出登录按钮保持原样（白色底+蓝色文字） */
 .logout-btn {
   width: 100%;
   height: 50px;

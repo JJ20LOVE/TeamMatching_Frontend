@@ -1,7 +1,7 @@
 
-page.data-v-7fad0a1c {
-  background-color: #f7f8fa;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Microsoft YaHei", 黑体, Arial, sans-serif;
+/* 🔥 强制全局年轻字体 */
+.settings-page.data-v-7fad0a1c, .settings-page *.data-v-7fad0a1c {
+  font-family: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif !important;
 }
 .settings-page.data-v-7fad0a1c {
   background-color: #f7f8fa;
@@ -48,7 +48,7 @@ page.data-v-7fad0a1c {
   font-weight: 500;
 }
 
-/* 开关样式：背景条为蓝色，滑块为白色 */
+/* 🔵 新消息通知开关改为ECNU蓝色 #003399 */
 .item-switch.data-v-7fad0a1c {
   transform: scale(0.9);
 }
@@ -56,12 +56,16 @@ page.data-v-7fad0a1c {
   width: 37pt !important;
   height: 20pt !important;
 }
-/* 开关背景条：与ECNU已认证一致的蓝色 #003399 */
+/* 开关开启时的背景色（蓝色） */
 .data-v-7fad0a1c .uni-switch-input::before {
   background-color: #003399 !important;
   border-radius: 10pt !important;
 }
-/* 开关滑块：白色 #ffffff */
+/* 开关关闭时的背景色（灰色） */
+.data-v-7fad0a1c .uni-switch-input:not([checked])::before {
+  background-color: #e5e5e5 !important;
+}
+/* 开关滑块（白色） */
 .data-v-7fad0a1c .uni-switch-input::after {
   background-color: #ffffff !important;
   border-radius: 8pt !important;
@@ -74,6 +78,8 @@ page.data-v-7fad0a1c {
   margin-top: 30px;
   padding: 0;
 }
+
+/* 退出登录按钮保持原样（白色底+蓝色文字） */
 .logout-btn.data-v-7fad0a1c {
   width: 100%;
   height: 50px;
