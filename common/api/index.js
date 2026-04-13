@@ -286,6 +286,20 @@ const api = {
     })
   },
 
+  // 获取我投递过的项目（用于「申请与团队」中的沟通与申请）
+  getMyApplications(params = {}) {
+    if (config.useMock) {
+      return mockApi.getMyApplications(params)
+    }
+    return uni.$u.http.get('/project/my-applications', {
+      params: {
+        page: params.page || 1,
+        size: params.size || 50
+      },
+      custom: { auth: true, catch: true }
+    })
+  },
+
   // 获取我的人才卡片（用于复用个人简历）
   getMyTalentCard() {
     if (config.useMock) {

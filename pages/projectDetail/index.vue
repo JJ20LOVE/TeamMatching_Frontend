@@ -123,6 +123,23 @@
         </view>
       </view>
 
+      <!-- 依赖 GET /project/{id} 返回 attachmentFileId / attachmentFileName（或嵌套附件），见接口文档 -->
+      <view v-if="projectHasAttachment" class="detail-section">
+        <view class="detail-section-header">
+          <view class="detail-section-accent"></view>
+          <view class="detail-section-heading">
+            <text class="detail-section-title">项目附件</text>
+            <text class="detail-section-hint">发起人提供的材料</text>
+          </view>
+        </view>
+        <view class="detail-section-panel">
+          <view class="project-attach-row" @tap="onOpenProjectAttachment">
+            <text class="project-attach-name">{{ project.attachmentFileName || '附件' }}</text>
+            <text class="project-attach-open">查看</text>
+          </view>
+        </view>
+      </view>
+
       <view v-if="project.roles && project.roles.length" class="role-section">
         <view class="detail-section-header role-section-header">
           <view class="detail-section-accent"></view>
@@ -238,6 +255,7 @@
 
 <script>
 import api from '@/common/api/index.js'
+import { ensureStudentVerified } from '@/common/auth/verifyGate.js'
 
 export default {
   computed: {
@@ -269,6 +287,13 @@ export default {
       const raw = this.project.projectFeatures == null ? '' : String(this.project.projectFeatures)
       if (!raw.trim()) return []
       return raw.split(/\r?\n/)
+    },
+    projectHasAttachment() {
+      const p = this.project
+      const name = String(p.attachmentFileName || '').trim()
+      const id = p.attachmentFileId
+      const idOk = id != null && id !== '' && Number.isFinite(Number(id))
+      return idOk || !!name
     }
   },
   data() {
@@ -306,7 +331,10 @@ export default {
         detail: '',
         roles: [],
         isAnonymous: false,
-        contactInfo: ''
+        contactInfo: '',
+        attachmentFileId: null,
+        attachmentFileName: '',
+        attachmentFileUrl: ''
       },
       applying: false,
       showApplyPopup: false,
@@ -438,6 +466,22 @@ export default {
           data.favored === true
         this.isFavored = !!favored
         this.syncAppliedStateFromDetail(data)
+        const attObj = data.attachmentFile || data.projectAttachmentFile || data.attachment || null
+        const rawAttId = data.attachmentFileId ?? data.projectAttachmentFileId ?? attObj?.fileId
+        let attachmentFileId = null
+        if (rawAttId != null && rawAttId !== '') {
+          const n = Number(rawAttId)
+          if (Number.isFinite(n)) attachmentFileId = n
+        }
+        const attachmentFileName =
+          (data.attachmentFileName != null && String(data.attachmentFileName).trim()) ||
+          (data.projectAttachmentFileName != null && String(data.projectAttachmentFileName).trim()) ||
+          (attObj?.fileName != null && String(attObj.fileName).trim()) ||
+          ''
+        const attachmentFileUrl =
+          (data.attachmentFileUrl != null && String(data.attachmentFileUrl)) ||
+          (attObj?.fileUrl != null && String(attObj.fileUrl)) ||
+          ''
         this.project = {
           id: data.projectId,
           name: data.name || '',
@@ -463,7 +507,10 @@ export default {
           detail: data.projectIntro || '',
           roles: Array.isArray(data.roleRequirements) ? data.roleRequirements : [],
           isAnonymous: anon,
-          contactInfo: anon ? (data.contactInfo || '') : ''
+          contactInfo: anon ? (data.contactInfo || '') : '',
+          attachmentFileId,
+          attachmentFileName,
+          attachmentFileUrl
         }
       } catch (e) {
         console.error(e)
@@ -508,14 +555,60 @@ export default {
         url: `/pages/userProfile/userProfile?userId=${uid}&userName=${name}&avatar=${avatar}`
       });
     },
-    // 立即沟通（打开统一表单）
-    handleCommunicate() {
-      const token = uni.getStorageSync('access-token')
-      if (!token) {
-        uni.showToast({ title: '请先登录', icon: 'none' })
-        setTimeout(() => uni.navigateTo({ url: '/pages/login/login' }), 300)
+
+    async onOpenProjectAttachment() {
+      const p = this.project
+      let url = String(p.attachmentFileUrl || '').trim()
+      if (!url && p.attachmentFileId != null && p.attachmentFileId !== '') {
+        try {
+          const res = await api.getFileInfo(p.attachmentFileId)
+          url = String(res?.data?.fileUrl || '').trim()
+        } catch (e) {
+          console.error(e)
+        }
+      }
+      if (!url) {
+        uni.showToast({ title: '暂无可打开链接', icon: 'none' })
         return
       }
+      uni.showActionSheet({
+        itemList: ['复制文件链接', '下载并打开'],
+        success: (tap) => {
+          if (tap.tapIndex === 0) {
+            uni.setClipboardData({ data: url })
+            uni.showToast({ title: '已复制', icon: 'none' })
+            return
+          }
+          uni.downloadFile({
+            url,
+            success: (dr) => {
+              if (dr.statusCode === 200 && dr.tempFilePath) {
+                uni.openDocument({
+                  filePath: dr.tempFilePath,
+                  fail: () => {
+                    uni.showToast({ title: '无法打开该类型', icon: 'none' })
+                  }
+                })
+              } else {
+                uni.showToast({ title: '下载失败', icon: 'none' })
+              }
+            },
+            fail: () => {
+              uni.showToast({ title: '下载失败', icon: 'none' })
+            }
+          })
+        }
+      })
+    },
+
+    // 立即沟通（打开统一表单）
+    handleCommunicate() {
+      this.openCommunicateGuarded()
+    },
+
+    async openCommunicateGuarded() {
+      const pass = await ensureStudentVerified('立即沟通')
+      if (!pass) return
       if (this.applying) return
       const roles = Array.isArray(this.project.roles) ? this.project.roles : []
       if (roles.length === 0) {
@@ -645,34 +738,49 @@ export default {
 
     chooseLocalFile(label) {
       return new Promise((resolve, reject) => {
-        // 小程序环境优先 chooseMessageFile，可选任意类型文件
-        if (typeof uni.chooseMessageFile === 'function') {
-          uni.chooseMessageFile({
+        const onFail = (e) => {
+          if (String(e?.errMsg || '').includes('cancel')) resolve('')
+          else reject(e)
+        }
+        const pickPath = (res) => {
+          const f0 = res?.tempFiles?.[0]
+          return (
+            (Array.isArray(res?.tempFilePaths) && res.tempFilePaths[0]) ||
+            f0?.path ||
+            f0?.tempFilePath ||
+            ''
+          )
+        }
+        const docExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx']
+
+        // #ifdef MP-WEIXIN
+        uni.chooseMessageFile({
+          count: 1,
+          type: 'file',
+          extension: docExtensions,
+          success: (res) => resolve(pickPath(res)),
+          fail: onFail
+        })
+        return
+        // #endif
+
+        if (typeof uni.chooseFile === 'function') {
+          uni.chooseFile({
             count: 1,
             type: 'file',
-            success: (res) => {
-              const file = res?.tempFiles?.[0]
-              const filePath = file?.path || file?.tempFilePath || ''
-              resolve(filePath || '')
-            },
-            fail: (e) => {
-              if (String(e?.errMsg || '').includes('cancel')) resolve('')
-              else reject(e)
-            }
+            extension: docExtensions,
+            success: (res) => resolve(pickPath(res)),
+            fail: onFail
           })
           return
         }
 
-        // 兜底：使用选择图片
         uni.chooseImage({
           count: 1,
           sizeType: ['compressed'],
           sourceType: ['album', 'camera'],
           success: (res) => resolve(res?.tempFilePaths?.[0] || ''),
-          fail: (e) => {
-            if (String(e?.errMsg || '').includes('cancel')) resolve('')
-            else reject(e)
-          }
+          fail: onFail
         })
       })
     },
@@ -1097,6 +1205,32 @@ export default {
 .detail-para--blank {
   min-height: 12px;
   margin-bottom: 8px;
+}
+.project-attach-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #e8edf5;
+  background: #f8fafc;
+}
+.project-attach-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  color: #334155;
+  font-weight: 500;
+  word-break: break-all;
+  line-height: 1.4;
+}
+.project-attach-open {
+  flex-shrink: 0;
+  font-size: 14px;
+  color: #2563eb;
+  font-weight: 600;
 }
 .role-section-header {
   margin-bottom: 12px;

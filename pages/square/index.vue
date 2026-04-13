@@ -5,7 +5,6 @@
         <view class="sort-filter">
           <text class="sort-item" :class="{ active: currentSort === 'latest' }" @click="changeSort('latest')">最新</text>
           <text class="sort-item" :class="{ active: currentSort === 'hot' }" @click="changeSort('hot')">最热</text>
-          <text class="sort-item" :class="{ active: currentSort === 'deadline' }" @click="changeSort('deadline')">截止最近</text>
         </view>
         <view class="search-bar">
           <input class="search-input" type="text" placeholder="搜索项目/关键词" v-model="searchKeyword" @confirm="handleSearch" />
@@ -17,7 +16,6 @@
         <text class="category-item" :class="{ active: currentCategory === 'all' }" @click="changeCategory('all')">综合</text>
         <text class="category-item" :class="{ active: currentCategory === 'internet+' }" @click="changeCategory('internet+')">互联网+</text>
         <text class="category-item" :class="{ active: currentCategory === 'innovation' }" @click="changeCategory('innovation')">大创</text>
-        <text class="filter-btn" @click="showFilter = true">筛选</text>
       </view>
     </view>
 
@@ -43,89 +41,6 @@
       </view>
     </view>
 
-    <!-- 🔥 筛选弹窗（侧拉） -->
-    <view class="filter-modal" v-if="showFilter" @click="closeFilter">
-      <view class="filter-panel" @click.stop>
-        <!-- 头部 -->
-        <view class="filter-header-top">
-          <text class="close-icon" @click="closeFilter">✕</text>
-          <text class="filter-title">筛选</text>
-        </view>
-      
-        <!-- 主体：左侧筛选分类 + 右侧选项 -->
-        <view class="filter-body">
-          <!-- 左侧：筛选分类（年级/比赛/技术栈） -->
-          <view class="filter-sidebar">
-            <text 
-              class="sidebar-item" 
-              :class="{ active: activeFilterTab === 'grade' }"
-              @click="activeFilterTab = 'grade'"
-            >年级</text>
-            <text 
-              class="sidebar-item" 
-              :class="{ active: activeFilterTab === 'competition' }"
-              @click="activeFilterTab = 'competition'"
-            >比赛</text>
-            <text 
-              class="sidebar-item" 
-              :class="{ active: activeFilterTab === 'tech' }"
-              @click="activeFilterTab = 'tech'"
-            >技术栈</text>
-          </view>
-      
-          <!-- 右侧：选项内容区 -->
-          <view class="filter-content">
-            <!-- 年级 -->
-            <view v-if="activeFilterTab === 'grade'" class="filter-section">
-              <text class="section-title">年级要求</text>
-              <view class="option-grid">
-                <text 
-                  class="filter-option" 
-                  :class="{ selected: selectedGrades.includes(item) }"
-                  @click="toggleSelect('grade', item)"
-                  v-for="item in gradeOptions" 
-                  :key="item"
-                >{{ item }}</text>
-              </view>
-            </view>
-      
-            <!-- 比赛 -->
-            <view v-if="activeFilterTab === 'competition'" class="filter-section">
-              <text class="section-title">比赛类型</text>
-              <view class="option-grid">
-                <text 
-                  class="filter-option" 
-                  :class="{ selected: selectedCompetitions.includes(item) }"
-                  @click="toggleSelect('competition', item)"
-                  v-for="item in competitionOptions" 
-                  :key="item"
-                >{{ item }}</text>
-              </view>
-            </view>
-      
-            <!-- 技术栈 -->
-            <view v-if="activeFilterTab === 'tech'" class="filter-section">
-              <text class="section-title">技术栈</text>
-              <view class="option-grid">
-                <text 
-                  class="filter-option" 
-                  :class="{ selected: selectedTechs.includes(item) }"
-                  @click="toggleSelect('tech', item)"
-                  v-for="item in techOptions" 
-                  :key="item"
-                >{{ item }}</text>
-              </view>
-            </view>
-          </view>
-        </view>
-      
-        <!-- 底部按钮 -->
-        <view class="filter-footer">
-          <button class="btn-clear" @click="clearAllFilter">清除</button>
-          <button class="btn-confirm" @click="confirmFilter">确定</button>
-        </view>
-      </view>
-    </view>
   </view>
 </template>
 
@@ -143,27 +58,15 @@ export default {
     return {
       isNavigating: false,
       loading: false,
-      // 与接口 GET /project/list 的 sort 一致：latest | hot | deadline
+      // 与接口 GET /project/list 的 sort 一致：latest | hot
       currentSort: "latest",
       currentCategory: "all",
       searchKeyword: "",
-      showFilter: false,
       projectList: [],
       currentPage: 1,
       pageSize: 10,
       listFinished: false,
-      loadingMore: false,
-      
-      // 🔥 筛选相关数据
-      activeFilterTab: "grade", // 当前激活的筛选标签
-      // 选项列表
-      gradeOptions: ["全部", "大一", "大二", "大三", "大四", "研究生"],
-      competitionOptions: ["互联网+", "大创", "挑战杯", "其他"],
-      techOptions: ["Vue", "React", "Python", "Java", "C++", "前端", "后端", "AI"],
-      // 已选中的选项
-      selectedGrades: [],
-      selectedCompetitions: [],
-      selectedTechs: []
+      loadingMore: false
     };
   },
 
@@ -206,27 +109,6 @@ export default {
           const tagMatch = item.tags?.some(t => t.toLowerCase().includes(keyword));
           return nameMatch || descMatch || tagMatch;
         });
-      }
-
-      // 🔥 年级筛选
-      if (this.selectedGrades.length > 0 && !this.selectedGrades.includes("全部")) {
-        result = result.filter(item => 
-          this.selectedGrades.includes(item.grade)
-        );
-      }
-
-      // 🔥 比赛筛选
-      if (this.selectedCompetitions.length > 0) {
-        result = result.filter(item => 
-          this.selectedCompetitions.includes(item.competition)
-        );
-      }
-
-      // 🔥 技术栈筛选
-      if (this.selectedTechs.length > 0) {
-        result = result.filter(item => 
-          item.techStack.some(tech => this.selectedTechs.includes(tech))
-        );
       }
 
       // 列表顺序由接口 sort 决定，此处仅做筛选映射，避免与后端排序冲突
@@ -294,7 +176,7 @@ export default {
     },
 
     buildProjectListQuery() {
-      const SORT_API = ['latest', 'hot', 'deadline']
+      const SORT_API = ['latest', 'hot']
       const sort = SORT_API.includes(this.currentSort) ? this.currentSort : 'latest'
       const params = {
         sort,
@@ -382,6 +264,7 @@ export default {
     },
 
     changeSort(t) {
+      if (t !== 'latest' && t !== 'hot') return
       this.currentSort = t
       this.fetchProjects({ reset: true })
     },
@@ -415,42 +298,6 @@ export default {
           }, 500); 
         }
       });
-    },
-
-    // 🔥 筛选相关方法
-    // 🔥 修复：真正的多选逻辑（点谁选谁，互不干扰）
-    toggleSelect(type, item) {
-      let list;
-      if (type === "grade") list = this.selectedGrades;
-      else if (type === "competition") list = this.selectedCompetitions;
-      else if (type === "tech") list = this.selectedTechs;
-    
-      // 核心：只切换当前点击项，不影响其他
-      const index = list.indexOf(item);
-      if (index > -1) {
-        // 已经选中 → 取消
-        list.splice(index, 1);
-      } else {
-        // 未选中 → 添加
-        list.push(item);
-      }
-    },
-
-    // 清除所有筛选
-    clearAllFilter() {
-      this.selectedGrades = [];
-      this.selectedCompetitions = [];
-      this.selectedTechs = [];
-    },
-
-    // 确定筛选：关闭弹窗
-    confirmFilter() {
-      this.showFilter = false;
-    },
-
-    // 关闭筛选弹窗
-    closeFilter() {
-      this.showFilter = false;
     }
   }
 };

@@ -125,22 +125,47 @@
         }
         try {
           const filePath = await new Promise((resolve, reject) => {
-            if (typeof uni.chooseMessageFile === 'function') {
-              uni.chooseMessageFile({
+            const onFail = (e) => {
+              if (String(e?.errMsg || '').includes('cancel')) resolve('')
+              else reject(e)
+            }
+            const pickPath = (res) => {
+              const f0 = res?.tempFiles?.[0]
+              return (
+                (Array.isArray(res?.tempFilePaths) && res.tempFilePaths[0]) ||
+                f0?.path ||
+                f0?.tempFilePath ||
+                ''
+              )
+            }
+            const resumeExtensions = ['.pdf', '.doc', '.docx']
+
+            // #ifdef MP-WEIXIN
+            uni.chooseMessageFile({
+              count: 1,
+              type: 'file',
+              extension: resumeExtensions,
+              success: (res) => resolve(pickPath(res)),
+              fail: onFail
+            })
+            return
+            // #endif
+
+            if (typeof uni.chooseFile === 'function') {
+              uni.chooseFile({
                 count: 1,
                 type: 'file',
-                success: (res) => {
-                  const file = res?.tempFiles?.[0]
-                  resolve(file?.path || file?.tempFilePath || '')
-                },
-                fail: reject
+                extension: resumeExtensions,
+                success: (res) => resolve(pickPath(res)),
+                fail: onFail
               })
               return
             }
+
             uni.chooseImage({
               count: 1,
               success: (res) => resolve(res?.tempFilePaths?.[0] || ''),
-              fail: reject
+              fail: onFail
             })
           })
           if (!filePath) return
