@@ -160,6 +160,7 @@ import UserInfo from '../../components/user/UserInfo.vue'
 import SkillTags from '../../components/user/SkillTags.vue'
 import api from '@/common/api/index.js'
 import { scheduleRelogin, shouldTriggerReloginFromError } from '@/common/http/authRedirect.js'
+import { ensureStudentVerified } from '@/common/auth/verifyGate.js'
 
 export default {
   components: {
@@ -314,7 +315,11 @@ export default {
       
       this.closeSkillModal()
     },
-    goMyProjects(type) {
+    async goMyProjects(type) {
+      if (type === 'joined') {
+        const pass = await ensureStudentVerified('申请与团队')
+        if (!pass) return
+      }
       uni.navigateTo({
         url: `/pages/user/my-projects?type=${type}`
       })

@@ -212,8 +212,12 @@ export default {
       this.teamRejected = []
       this.loading = true
       try {
-        const res = await api.getMyTeams()
-        const data = res?.data || {}
+        const [teamRes, appRes] = await Promise.all([
+          api.getMyTeams(),
+          api.getMyApplications({ page: 1, size: 100 })
+        ])
+        const data = teamRes?.data || {}
+        const applications = Array.isArray(appRes?.data) ? appRes.data : []
 
         this.teamJoined = Array.isArray(data.joined)
           ? data.joined.map((x) => ({
@@ -247,9 +251,20 @@ export default {
             }))
           : []
 
-        this.teamCommunicating = [...applying, ...invited]
+        const appComm = applications
+          .filter((x) => Number(x.result) === 0)
+          .map((x) => ({
+            projectId: x.projectId,
+            title: x.projectName || `项目${x.projectId || ''}`,
+            statusClass: 'pending',
+            statusText: '待审核',
+            subLine: [x.role && `角色：${x.role}`, x.applyTime && `申请时间 ${this.formatTeamTime(x.applyTime)}`]
+              .filter(Boolean)
+              .join(' · ')
+          }))
+        this.teamCommunicating = this.mergeUniqueByProject([...applying, ...invited, ...appComm])
 
-        this.teamRejected = Array.isArray(data.rejected)
+        const fromTeamRejected = Array.isArray(data.rejected)
           ? data.rejected.map((x) => ({
               projectId: x.projectId,
               title: x.name,
@@ -257,12 +272,47 @@ export default {
               statusText: this.rejectedStatusText(x.status)
             }))
           : []
+        const appRejected = applications
+          .filter((x) => Number(x.result) === 2)
+          .map((x) => ({
+            projectId: x.projectId,
+            title: x.projectName || `项目${x.projectId || ''}`,
+            statusClass: 'rejected',
+            statusText: '申请未通过',
+            subLine: [x.role && `角色：${x.role}`, x.auditTime && `审核时间 ${this.formatTeamTime(x.auditTime)}`]
+              .filter(Boolean)
+              .join(' · ')
+          }))
+        this.teamRejected = this.mergeUniqueByProject([...fromTeamRejected, ...appRejected])
+
+        const appPassed = applications
+          .filter((x) => Number(x.result) === 1)
+          .map((x) => ({
+            projectId: x.projectId,
+            title: x.projectName || `项目${x.projectId || ''}`,
+            statusClass: 'passed',
+            statusText: '已通过',
+            subLine: [x.role && `角色：${x.role}`, x.auditTime && `通过时间 ${this.formatTeamTime(x.auditTime)}`]
+              .filter(Boolean)
+              .join(' · ')
+          }))
+        this.teamJoined = this.mergeUniqueByProject([...this.teamJoined, ...appPassed])
       } catch (err) {
         console.error('获取我加入的项目失败：', err)
         uni.showToast({ title: '获取失败', icon: 'none' })
       } finally {
         this.loading = false
       }
+    },
+
+    mergeUniqueByProject(list) {
+      const m = new Map()
+      ;(Array.isArray(list) ? list : []).forEach((item) => {
+        const pid = String(item?.projectId || '')
+        if (!pid) return
+        if (!m.has(pid)) m.set(pid, item)
+      })
+      return Array.from(m.values())
     },
 
     buildJoinedSubLine(x) {

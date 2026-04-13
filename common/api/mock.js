@@ -61,6 +61,23 @@ const projectMockList = [
   }
 ];
 
+const mockMyApplications = [
+  {
+    applicationId: 401,
+    projectId: 2,
+    projectName: '示例：申请中的项目',
+    belongTrack: '大创',
+    projectStatus: 2,
+    role: '全栈',
+    requirementId: 302,
+    result: 0,
+    applyTime: new Date(Date.now() - 3600 * 1000).toISOString(),
+    auditTime: null,
+    remark: null,
+    sessionId: 501
+  }
+]
+
 function nextProjectId() {
   const maxId = projectMockList.reduce((m, x) => Math.max(m, Number(x.projectId) || 0), 0)
   return maxId + 1
@@ -187,6 +204,24 @@ function uploadFile(params) {
       resolve({ code: 200, message: 'success', data: { ...row } })
       return
     }
+    if (tt === 5) {
+      const fileId = mockResumeNextId++
+      const ext = (baseName.includes('.') ? baseName.split('.').pop() : 'pdf') || 'pdf'
+      const row = {
+        fileId,
+        fileName: baseName,
+        fileUrl: `https://example.com/files/project-${fileId}.${ext}`,
+        fileSize: 102400,
+        fileType: 'application/octet-stream',
+        fileExtension: String(ext).slice(0, 12),
+        md5Hash: 'd41d8cd98f00b204e9800998ecf8427e',
+        targetType: 5,
+        createdTime: new Date().toISOString()
+      }
+      mockUserResumeFiles.unshift(row)
+      resolve({ code: 200, message: 'success', data: { ...row } })
+      return
+    }
     resolve({
       code: 200,
       message: 'success',
@@ -262,11 +297,15 @@ function createProject(params) {
     name: params?.name || "未命名项目",
     belongTrack: params?.belongTrack || "其他",
     projectIntro: params?.projectIntro || "",
-    projectType: params?.projectType || "创新训练",
+    projectType: params?.projectType || "",
     level: params?.level ?? 1,
     projectFeatures: params?.projectFeatures || "",
+    projectProgress: params?.projectProgress || params?.progectProgress || "",
+    progectProgress: params?.progectProgress || params?.projectProgress || "",
     tags: params?.tags || "",
-    allowCrossMajor: !!params?.allowCrossMajor,
+    allowCrossMajor: params?.allowCrossMajor !== false,
+    attachmentFileId: params?.attachmentFileId || null,
+    attachmentFileName: params?.attachmentFileName || "",
     isAnonymous: !!params?.isAnonymous,
     contactInfo: params?.contactInfo || "",
     publisherInfo: { userId: 10001, nickname: "测试用户", avatar: "" },
@@ -387,6 +426,19 @@ function getMyTeams() {
   })
 }
 
+function getMyApplications(params = {}) {
+  const page = Math.max(1, Number(params.page) || 1)
+  const size = Math.min(50, Math.max(1, Number(params.size) || 20))
+  return new Promise((resolve) => {
+    const start = (page - 1) * size
+    resolve({
+      code: 200,
+      message: 'success',
+      data: mockMyApplications.slice(start, start + size)
+    })
+  })
+}
+
 function toProjectListItem(p) {
   if (!p) return null
   return {
@@ -502,13 +554,29 @@ function applyProject(projectId, params) {
       reject({ code: 400, message: '参数不完整' })
       return
     }
+    const project = projectMockList.find((x) => String(x.projectId) === String(projectId))
+    const appId = Date.now()
+    mockMyApplications.unshift({
+      applicationId: appId,
+      projectId: Number(projectId),
+      projectName: project?.name || `项目${projectId}`,
+      belongTrack: project?.belongTrack || '',
+      projectStatus: Number(project?.status ?? 2),
+      role: project?.roleRequirements?.find((r) => Number(r.requirementId) === requirementId)?.role || '',
+      requirementId,
+      result: 0,
+      applyTime: new Date().toISOString(),
+      auditTime: null,
+      remark: null,
+      sessionId: appId + 1
+    })
     resolve({
       code: 200,
       message: 'success',
       data: {
-        applicationId: Date.now(),
+        applicationId: appId,
         message: '投递成功，等待队长回复',
-        sessionId: Date.now() + 1
+        sessionId: appId + 1
       }
     })
   })
@@ -550,6 +618,7 @@ export default {
   getMyPublishedProjects,
   getUserPublishedProjects,
   getMyTeams,
+  getMyApplications,
   getProjectDetail,
   toggleFavoriteProject,
   getMyFavoriteProjects,

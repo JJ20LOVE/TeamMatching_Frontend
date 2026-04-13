@@ -99,8 +99,19 @@ export default {
       }
       this.resumeLoading = true
       try {
-        const res = await api.getMyUploadedFiles({ targetType: 1, page: 1, size: 50 })
-        const arr = this.normalizeUploadedFiles(res)
+        // 按文档主查 targetType=1，避免其它类型查询失败影响主列表
+        const r1 = await api.getMyUploadedFiles({ targetType: 1, page: 1, size: 50 })
+        const list1 = this.normalizeUploadedFiles(r1)
+        let merged = [...list1]
+
+        // 兜底兼容：若 1 为空，尝试读取 6；失败不影响主流程
+        if (!merged.length) {
+          try {
+            const r6 = await api.getMyUploadedFiles({ targetType: 6, page: 1, size: 50 })
+            merged = this.mergeResumeFiles([...merged, ...this.normalizeUploadedFiles(r6)])
+          } catch (e) {}
+        }
+        const arr = this.mergeResumeFiles(merged)
         this.resumeList = arr
         this.syncApplyResumeCache(arr)
       } catch (e) {
@@ -111,32 +122,65 @@ export default {
       }
     },
 
+    mergeResumeFiles(list) {
+      const m = new Map()
+      ;(Array.isArray(list) ? list : []).forEach((x) => {
+        const id = String(x?.fileId || '')
+        if (!id) return
+        if (!m.has(id)) m.set(id, x)
+      })
+      return Array.from(m.values()).sort((a, b) => {
+        const ta = new Date(a?.createdTime || 0).getTime() || 0
+        const tb = new Date(b?.createdTime || 0).getTime() || 0
+        return tb - ta
+      })
+    },
+
     async pickResumeFilePath() {
       return new Promise((resolve, reject) => {
-        if (typeof uni.chooseMessageFile === 'function') {
-          uni.chooseMessageFile({
+        const onFail = (e) => {
+          if (String(e?.errMsg || '').includes('cancel')) resolve('')
+          else reject(e)
+        }
+        const pickPath = (res) => {
+          const f0 = res?.tempFiles?.[0]
+          return (
+            (Array.isArray(res?.tempFilePaths) && res.tempFilePaths[0]) ||
+            f0?.path ||
+            f0?.tempFilePath ||
+            ''
+          )
+        }
+        const resumeExtensions = ['.pdf', '.doc', '.docx']
+
+        // #ifdef MP-WEIXIN
+        uni.chooseMessageFile({
+          count: 1,
+          type: 'file',
+          extension: resumeExtensions,
+          success: (res) => resolve(pickPath(res)),
+          fail: onFail
+        })
+        return
+        // #endif
+
+        if (typeof uni.chooseFile === 'function') {
+          uni.chooseFile({
             count: 1,
             type: 'file',
-            success: (res) => {
-              const f = res?.tempFiles?.[0]
-              resolve(f?.path || f?.tempFilePath || '')
-            },
-            fail: (e) => {
-              if (String(e?.errMsg || '').includes('cancel')) resolve('')
-              else reject(e)
-            }
+            extension: resumeExtensions,
+            success: (res) => resolve(pickPath(res)),
+            fail: onFail
           })
           return
         }
+
         uni.chooseImage({
           count: 1,
           sizeType: ['compressed'],
           sourceType: ['album', 'camera'],
           success: (r) => resolve(r?.tempFilePaths?.[0] || ''),
-          fail: (e) => {
-            if (String(e?.errMsg || '').includes('cancel')) resolve('')
-            else reject(e)
-          }
+          fail: onFail
         })
       })
     },

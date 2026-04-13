@@ -39,23 +39,19 @@
           </view>
         </FormCard>
 
-        <FormCard title="赛道与分级（接口 belongTrack / level）">
+        <FormCard title="赛道与分级">
           <view class="form-item">
             <text class="label">所属赛道<text class="req">*</text></text>
-            <view class="select" @click="selectCategory">
-              {{ form.category || '请选择（如大创、挑战杯）' }}
-            </view>
+            <view class="select" @click="selectTrackKind">{{ trackKindLabel }}</view>
+          </view>
+          <view v-if="form.trackKind === 'custom'" class="form-item">
+            <text class="label">自定义赛道名称<text class="req">*</text></text>
+            <input v-model="form.customTrack" placeholder="请输入具体赛道名称" class="input" />
           </view>
           <view class="form-item">
             <text class="label">项目级别<text class="req">*</text></text>
             <view class="select" @click="selectLevel">
               {{ levelDisplay }}
-            </view>
-          </view>
-          <view class="form-item">
-            <text class="label">项目类型<text class="req">*</text></text>
-            <view class="select" @click="selectProjectType">
-              {{ form.projectType || '请选择' }}
             </view>
           </view>
           <view class="form-item">
@@ -66,14 +62,42 @@
           </view>
         </FormCard>
 
-        <FormCard title="亮点与标签（接口 projectFeatures / tags）">
-          <view class="form-item">
-            <text class="label">项目特点 / 亮点</text>
-            <textarea v-model="form.projectFeatures" placeholder="如：智能匹配、跨专业协作" class="textarea" />
+        <FormCard title="标签">
+          <view class="tag-quick-row">
+            <view
+              v-for="t in quickTagOptions"
+              :key="t"
+              class="quick-tag"
+              :class="{ 'quick-tag--on': quickTagOn(t) }"
+              @click="toggleQuickTag(t)"
+            >
+              <text>{{ t }}</text>
+            </view>
           </view>
           <view class="form-item">
-            <text class="label">项目标签</text>
-            <input v-model="form.tags" placeholder="多个标签请用英文逗号分隔，如：AI,组队,校园" class="input" />
+            <input v-model="form.tags" placeholder="例如：AI,前端,组队" class="input" />
+          </view>
+        </FormCard>
+
+        <FormCard title="项目进展">
+          <view class="form-item">
+            <text class="label">项目进展说明<text class="req">*</text></text>
+            <textarea v-model="form.projectProgress" placeholder="如：当前阶段、已完成事项、下一步计划" class="textarea" />
+          </view>
+        </FormCard>
+
+        <FormCard title="项目附件">
+          <view class="form-item">
+            <view class="upload-attach-trigger" @click="uploadProjectAttachment">
+              <text v-if="form.projectAttachmentFileName" class="upload-attach-value">{{ form.projectAttachmentFileName }}</text>
+              <text v-else class="upload-attach-placeholder">点击上传文件</text>
+              <text
+                v-if="form.projectAttachmentFileId"
+                class="upload-attach-del"
+                @click.stop="clearProjectAttachment"
+              >移除</text>
+              <text v-else class="upload-attach-link">上传</text>
+            </view>
           </view>
         </FormCard>
 
@@ -81,11 +105,14 @@
           <view class="add-row">
             <button class="add-btn" @click="addRole">添加角色</button>
           </view>
-        
-          <!-- 一组 = 角色名称 + 招募数量 放在一起 -->
-          <view class="role-group" v-for="(item, idx) in form.roles" :key="idx">
+
+          <view class="role-group" v-for="(item, idx) in form.roles" :key="'rg-' + idx">
+            <view class="role-group-head">
+              <text class="role-group-title">角色 {{ idx + 1 }}</text>
+              <text v-if="form.roles.length > 1" class="role-remove" @click="removeRole(idx)">删除角色</text>
+            </view>
             <view class="form-item">
-              <text class="label">角色名称 {{ idx + 1 }}<text class="req">*</text></text>
+              <text class="label">角色名称<text class="req">*</text></text>
               <input v-model="item.name" placeholder="如：前端、后端、设计" class="input" />
             </view>
             <view class="form-item">
@@ -108,12 +135,6 @@
             </view>
           </view>
           <view class="form-item switch-row">
-            <text class="label">允许跨专业申请</text>
-            <view class="switch" :class="form.allowCrossMajor ? 'on' : ''" @click="form.allowCrossMajor = !form.allowCrossMajor">
-              <view class="switch-circle"></view>
-            </view>
-          </view>
-          <view class="form-item switch-row">
             <text class="label">匿名发布</text>
             <view class="switch" :class="form.isAnonymous ? 'on' : ''" @click="form.isAnonymous = !form.isAnonymous">
               <view class="switch-circle"></view>
@@ -126,8 +147,11 @@
         </FormCard>
 
         <FormCard title="角色详情配置">
-          <view class="form-item" v-for="(item, idx) in form.roles" :key="'req-' + idx">
-            <text class="label">{{ item.name || '未命名角色' }} ({{ item.count || 0 }}人)</text>
+          <view class="form-item role-req-block" v-for="(item, idx) in form.roles" :key="'req-' + idx">
+            <view class="role-req-head">
+              <text class="label">{{ item.name || '未命名角色' }} ({{ item.count || 0 }}人)</text>
+              <text v-if="form.roles.length > 1" class="role-remove" @click="removeRole(idx)">删除角色</text>
+            </view>
             <textarea v-model="item.requirement" placeholder="具体要求：" class="textarea" />
           </view>
         </FormCard>
@@ -138,13 +162,13 @@
         <FormCard>
           <view class="preview-title">{{ form.name || '基于AI的校园组队平台' }}</view>
           <view class="preview-tags">
-            <view class="tag tag-type">{{ form.category || '大创项目' }}</view>
+            <view class="tag tag-type">{{ belongTrackPreview }}</view>
             <view class="tag tag-status">{{ apiStatusDisplay }}</view>
             <view class="tag tag-level">{{ levelDisplay }}</view>
-            <view class="tag tag-ptype">{{ form.projectType || '创新训练' }}</view>
           </view>
-          <view v-if="form.projectFeatures" class="preview-features">亮点：{{ form.projectFeatures }}</view>
           <view v-if="form.tags" class="preview-tags-line">标签：{{ form.tags }}</view>
+          <view v-if="form.projectProgress" class="preview-features">进展：{{ form.projectProgress }}</view>
+          <view v-if="form.projectAttachmentFileName" class="preview-tags-line">附件：{{ form.projectAttachmentFileName }}</view>
           <view v-if="form.isAnonymous" class="preview-anon">匿名发布 · 联系方式：{{ form.contactInfo || '未填写' }}</view>
           <view class="preview-desc">
             项目描述预览：{{ form.desc || '本项目旨在利用人工智能技术，为华师大学生提供一个高效，精准的比赛组队平台' }}
@@ -185,6 +209,7 @@
 <script>
 import FormCard from '@/components/FormCard.vue'
 import api from '@/common/api/index.js'
+import { ensureStudentVerified } from '@/common/auth/verifyGate.js'
 
 export default {
   components: { FormCard },
@@ -196,30 +221,33 @@ export default {
       form: {
         name: '',
         desc: '',
-        category: '',
-        /** 接口 status：0草拟 1实施 2招募中 3完成 4终止 */
+        /** 赛道：dachuang | internet | custom，对应 大创 / 互联网+ / 其它手写 */
+        trackKind: 'dachuang',
+        customTrack: '',
+        /** 接口 status：仅 0草拟 2招募中 3完成 */
         apiStatus: 2,
         /** 接口 level：1校级 2省级 3国家级 */
         level: 1,
-        /** 接口 projectType */
-        projectType: '创新训练',
-        projectFeatures: '',
         tags: '',
+        projectProgress: '',
+        projectAttachmentFileId: null,
+        projectAttachmentFileName: '',
         isAnonymous: false,
         contactInfo: '',
         deadlineDate: '',
         deadlineTime: '23:59',
-        allowCrossMajor: false,
         roles: [{ name: '', count: '', requirement: '' }]
       },
-      categoryOptions: ['大创', '挑战杯', '互联网+', '其他'],
-      projectTypeOptions: ['创新训练', '创业实践'],
+      quickTagOptions: ['AI', '前端', '后端', '大创', '数据分析', 'UI设计', '产品经理', '算法', '小程序'],
+      trackKindOptions: [
+        { label: '大创', value: 'dachuang' },
+        { label: '互联网+', value: 'internet' },
+        { label: '其它', value: 'custom' }
+      ],
       apiStatusOptions: [
         { label: '草拟', value: 0 },
-        { label: '实施', value: 1 },
         { label: '招募中', value: 2 },
-        { label: '完成', value: 3 },
-        { label: '终止', value: 4 }
+        { label: '完成', value: 3 }
       ],
       editingDraftId: null,
       editingProjectId: null
@@ -237,9 +265,18 @@ export default {
       return m[lv] || '校级'
     },
     apiStatusDisplay() {
-      const m = { 0: '草拟', 1: '实施', 2: '招募中', 3: '完成', 4: '终止' }
+      const m = { 0: '草拟', 2: '招募中', 3: '完成' }
       const s = Number(this.form.apiStatus)
       return m[s] !== undefined ? m[s] : '招募中'
+    },
+    trackKindLabel() {
+      const k = this.form.trackKind
+      if (k === 'dachuang') return '大创'
+      if (k === 'internet') return '互联网+'
+      return '其它'
+    },
+    belongTrackPreview() {
+      return this.getBelongTrackPayload() || '—'
     }
   },
 
@@ -277,10 +314,12 @@ export default {
     validateForm() {
       const name = this.form.name?.trim()
       const desc = this.form.desc?.trim()
-      const category = this.form.category?.trim()
+      const track = this.getBelongTrackPayload()
+      const progress = String(this.form.projectProgress || '').trim()
       if (!name) return { ok: false, msg: '请填写项目名称' }
       if (!desc) return { ok: false, msg: '请填写项目描述' }
-      if (!category) return { ok: false, msg: '请选择竞赛类别' }
+      if (!track) return { ok: false, msg: '请完善所属赛道（其它时请填写名称）' }
+      if (!progress) return { ok: false, msg: '请填写项目进展说明' }
       if (!Array.isArray(this.form.roles) || this.form.roles.length === 0) {
         return { ok: false, msg: '请至少添加一个角色需求' }
       }
@@ -373,13 +412,40 @@ export default {
       }
     },
 
-    selectCategory() {
+    getBelongTrackPayload() {
+      if (this.form.trackKind === 'dachuang') return '大创'
+      if (this.form.trackKind === 'internet') return '互联网+'
+      return String(this.form.customTrack || '').trim()
+    },
+
+    selectTrackKind() {
+      const labels = this.trackKindOptions.map((x) => x.label)
       uni.showActionSheet({
-        itemList: this.categoryOptions,
+        itemList: labels,
         success: (res) => {
-          this.form.category = this.categoryOptions[res.tapIndex]
+          const opt = this.trackKindOptions[res.tapIndex]
+          if (opt) this.form.trackKind = opt.value
         }
       })
+    },
+
+    quickTagOn(t) {
+      const parts = String(this.form.tags || '')
+        .split(/[,，]/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+      return parts.includes(t)
+    },
+
+    toggleQuickTag(t) {
+      let parts = String(this.form.tags || '')
+        .split(/[,，]/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+      const i = parts.indexOf(t)
+      if (i >= 0) parts.splice(i, 1)
+      else parts.push(t)
+      this.form.tags = parts.join(',')
     },
 
     selectLevel() {
@@ -387,15 +453,6 @@ export default {
         itemList: ['校级', '省级', '国家级'],
         success: (res) => {
           this.form.level = res.tapIndex + 1
-        }
-      })
-    },
-
-    selectProjectType() {
-      uni.showActionSheet({
-        itemList: this.projectTypeOptions,
-        success: (res) => {
-          this.form.projectType = this.projectTypeOptions[res.tapIndex]
         }
       })
     },
@@ -419,20 +476,147 @@ export default {
         f.apiStatus = legacy[f.status] != null ? legacy[f.status] : 2
       }
       if (f.apiStatus === undefined || f.apiStatus === '') f.apiStatus = 2
+      f.apiStatus = this.normalizeStatusForForm(f.apiStatus)
       if (f.level === undefined || f.level === '') f.level = 1
-      if (!f.projectType) f.projectType = '创新训练'
-      if (f.projectFeatures === undefined) f.projectFeatures = ''
       if (f.tags === undefined) f.tags = ''
+      if (f.projectProgress === undefined) f.projectProgress = ''
+      if (f.projectAttachmentFileId === undefined) f.projectAttachmentFileId = null
+      if (f.projectAttachmentFileName === undefined) f.projectAttachmentFileName = ''
       if (f.isAnonymous === undefined) f.isAnonymous = false
       if (f.contactInfo === undefined) f.contactInfo = ''
       if (!Array.isArray(f.roles) || f.roles.length === 0) {
         f.roles = [{ name: '', count: '', requirement: '' }]
       }
+      this.hydrateTrackFromLegacy(f)
+      delete f.category
+      delete f.projectType
+      delete f.projectFeatures
+      delete f.allowCrossMajor
       return f
+    },
+
+    hydrateTrackFromLegacy(f) {
+      if (f.trackKind && ['dachuang', 'internet', 'custom'].includes(f.trackKind)) {
+        if (f.trackKind !== 'custom') f.customTrack = f.customTrack || ''
+        return
+      }
+      const c = String(f.category || f.belongTrack || '').trim()
+      if (c === '大创') {
+        f.trackKind = 'dachuang'
+        f.customTrack = ''
+      } else if (c === '互联网+' || c === '互联网＋') {
+        f.trackKind = 'internet'
+        f.customTrack = ''
+      } else if (c) {
+        f.trackKind = 'custom'
+        f.customTrack = c
+      } else {
+        f.trackKind = 'dachuang'
+        f.customTrack = ''
+      }
     },
 
     addRole() {
       this.form.roles.push({ name: '', count: '', requirement: '' })
+    },
+
+    removeRole(idx) {
+      if (!Array.isArray(this.form.roles) || this.form.roles.length <= 1) {
+        uni.showToast({ title: '至少保留一个角色', icon: 'none' })
+        return
+      }
+      this.form.roles.splice(idx, 1)
+    },
+
+    chooseLocalFile() {
+      return new Promise((resolve, reject) => {
+        const onFail = (e) => {
+          if (String(e?.errMsg || '').includes('cancel')) resolve('')
+          else reject(e)
+        }
+        const pickPath = (res) => {
+          const f0 = res?.tempFiles?.[0]
+          return (
+            (Array.isArray(res?.tempFilePaths) && res.tempFilePaths[0]) ||
+            f0?.path ||
+            f0?.tempFilePath ||
+            ''
+          )
+        }
+        const docExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx']
+
+        // 微信小程序：从会话选择文件（支持 PDF / Office 等）
+        // #ifdef MP-WEIXIN
+        uni.chooseMessageFile({
+          count: 1,
+          type: 'file',
+          extension: docExtensions,
+          success: (res) => resolve(pickPath(res)),
+          fail: onFail
+        })
+        return
+        // #endif
+
+        // H5 / App 等：系统文件选择器（否则上面逻辑在非微信端会落到 chooseImage，只能选图片）
+        if (typeof uni.chooseFile === 'function') {
+          uni.chooseFile({
+            count: 1,
+            type: 'file',
+            extension: docExtensions,
+            success: (res) => resolve(pickPath(res)),
+            fail: onFail
+          })
+          return
+        }
+
+        uni.chooseImage({
+          count: 1,
+          sizeType: ['compressed'],
+          sourceType: ['album', 'camera'],
+          success: (r) => resolve(r?.tempFilePaths?.[0] || ''),
+          fail: onFail
+        })
+      })
+    },
+
+    async uploadProjectAttachment() {
+      const token = uni.getStorageSync('access-token')
+      if (!token) {
+        uni.showToast({ title: '请先登录', icon: 'none' })
+        return
+      }
+      try {
+        const filePath = await this.chooseLocalFile()
+        if (!filePath) return
+        uni.showLoading({ title: '上传中…' })
+        const uploadRes = await api.uploadFile({ filePath, targetType: 5, isTemp: false })
+        const file = uploadRes?.data
+        if (!file?.fileId) {
+          uni.showToast({ title: '上传失败', icon: 'none' })
+          return
+        }
+        this.form.projectAttachmentFileId = file.fileId
+        this.form.projectAttachmentFileName = file.fileName || '已上传附件'
+        uni.showToast({ title: '上传成功', icon: 'success' })
+      } catch (e) {
+        console.error(e)
+        uni.showToast({ title: e?.data?.message || e?.message || '上传失败', icon: 'none' })
+      } finally {
+        uni.hideLoading()
+      }
+    },
+
+    clearProjectAttachment() {
+      this.form.projectAttachmentFileId = null
+      this.form.projectAttachmentFileName = ''
+    },
+
+    /** 将接口 status 映射为表单允许的 0 / 2 / 3 */
+    normalizeStatusForForm(status) {
+      const n = Number(status)
+      if (n === 0) return 0
+      if (n === 3) return 3
+      return 2
     },
 
     onBackFromEdit() {
@@ -450,17 +634,18 @@ export default {
       this.form = {
         name: '',
         desc: '',
-        category: '',
+        trackKind: 'dachuang',
+        customTrack: '',
         apiStatus: 2,
         level: 1,
-        projectType: '创新训练',
-        projectFeatures: '',
         tags: '',
+        projectProgress: '',
+        projectAttachmentFileId: null,
+        projectAttachmentFileName: '',
         isAnonymous: false,
         contactInfo: '',
         deadlineDate: '',
         deadlineTime: '23:59',
-        allowCrossMajor: false,
         roles: [{ name: '', count: '', requirement: '' }]
       }
       uni.setNavigationBarTitle({ title: '新建项目' })
@@ -481,21 +666,32 @@ export default {
     applyProjectDetailToForm(data) {
       const { date, time } = this.parseDeadlineRecruit(data.deadlineRecruit)
       const rolesFromApi = Array.isArray(data.roleRequirements) ? data.roleRequirements : []
+      const bt = String(data.belongTrack || '').trim()
+      let trackKind = 'custom'
+      let customTrack = bt
+      if (bt === '大创') {
+        trackKind = 'dachuang'
+        customTrack = ''
+      } else if (bt === '互联网+' || bt === '互联网＋') {
+        trackKind = 'internet'
+        customTrack = ''
+      }
       const st = data.status
       this.form = {
         name: data.name || '',
         desc: data.projectIntro || '',
-        category: data.belongTrack || '',
-        apiStatus: typeof st === 'number' && st >= 0 && st <= 4 ? st : 2,
+        trackKind,
+        customTrack,
+        apiStatus: this.normalizeStatusForForm(st),
         level: data.level != null ? data.level : 1,
-        projectType: data.projectType || '创新训练',
-        projectFeatures: data.projectFeatures || '',
         tags: data.tags || '',
+        projectProgress: data.projectProgress || data.progectProgress || '',
+        projectAttachmentFileId: data.attachmentFileId || data.projectAttachmentFileId || null,
+        projectAttachmentFileName: data.attachmentFileName || data.projectAttachmentFileName || '',
         isAnonymous: !!data.isAnonymous,
         contactInfo: data.contactInfo || '',
         deadlineDate: date,
         deadlineTime: time,
-        allowCrossMajor: !!data.allowCrossMajor,
         roles:
           rolesFromApi.length > 0
             ? rolesFromApi.map((r) => ({
@@ -573,17 +769,18 @@ export default {
         this.form = {
           name: '',
           desc: '',
-          category: '',
+          trackKind: 'dachuang',
+          customTrack: '',
           apiStatus: 2,
           level: 1,
-          projectType: '创新训练',
-          projectFeatures: '',
           tags: '',
+          projectProgress: '',
+          projectAttachmentFileId: null,
+          projectAttachmentFileName: '',
           isAnonymous: false,
           contactInfo: '',
           deadlineDate: '',
           deadlineTime: '23:59',
-          allowCrossMajor: false,
           roles: [{ name: '', count: '', requirement: '' }]
         }
         this.editingDraftId = null
@@ -602,25 +799,35 @@ export default {
       }))
       const anon = !!this.form.isAnonymous
       const lv = Number(this.form.level)
-      const st = Number(this.form.apiStatus)
-      return {
+      const st = this.normalizeStatusForForm(this.form.apiStatus)
+      const progress = String(this.form.projectProgress || '').trim()
+      const payload = {
         name: this.form.name.trim(),
-        belongTrack: this.form.category,
+        belongTrack: this.getBelongTrackPayload(),
         level: Number.isFinite(lv) && lv >= 1 && lv <= 3 ? lv : 1,
-        projectType: this.form.projectType,
         projectIntro: this.form.desc,
-        projectFeatures: (this.form.projectFeatures || '').trim(),
+        projectProgress: progress,
+        progectProgress: progress,
+        projectFeatures: '',
         tags: (this.form.tags || '').trim(),
-        allowCrossMajor: this.form.allowCrossMajor,
+        allowCrossMajor: true,
         isAnonymous: anon,
         contactInfo: anon ? String(this.form.contactInfo || '').trim() : '',
         deadlineRecruit,
-        status: Number.isFinite(st) && st >= 0 && st <= 4 ? st : 2,
+        status: st,
         roleRequirements
       }
+      if (this.form.projectAttachmentFileId) {
+        payload.attachmentFileId = Number(this.form.projectAttachmentFileId)
+        const n = String(this.form.projectAttachmentFileName || '').trim()
+        if (n) payload.attachmentFileName = n
+      }
+      return payload
     },
 
     async submitProject() {
+      const pass = await ensureStudentVerified('发布项目')
+      if (!pass) return
       const v = this.validateForm()
       if (!v.ok) {
         uni.showToast({ title: v.msg, icon: 'none' })
@@ -947,5 +1154,91 @@ export default {
 .next {
   background: #1677ff;
   color: #fff;
+}
+
+.tag-quick-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx 16rpx;
+  margin-bottom: 20rpx;
+}
+.quick-tag {
+  font-size: 24rpx;
+  padding: 8rpx 18rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid #d0d7de;
+  color: #555;
+  background: #fff;
+}
+.quick-tag--on {
+  border-color: #1677ff;
+  background: #e6f4ff;
+  color: #1677ff;
+  font-weight: 600;
+}
+.role-group-head,
+.role-req-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+}
+.role-group-title {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #333;
+}
+.role-remove {
+  font-size: 24rpx;
+  color: #ff4d4f;
+  padding: 8rpx 12rpx;
+}
+.role-req-block {
+  padding-bottom: 8rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+  margin-bottom: 20rpx;
+}
+.role-req-block:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+.upload-attach-trigger {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  min-height: 80rpx;
+  padding: 16rpx 20rpx;
+  border: 1rpx solid #eee;
+  border-radius: 8rpx;
+  background: #fff;
+  box-sizing: border-box;
+}
+.upload-attach-value {
+  flex: 1;
+  min-width: 0;
+  font-size: 28rpx;
+  color: #333;
+  line-height: 1.4;
+  word-break: break-all;
+  padding-right: 16rpx;
+}
+.upload-attach-placeholder {
+  flex: 1;
+  font-size: 28rpx;
+  color: #999;
+  padding-right: 16rpx;
+}
+.upload-attach-link {
+  flex-shrink: 0;
+  font-size: 28rpx;
+  color: #1677ff;
+  font-weight: 500;
+}
+.upload-attach-del {
+  flex-shrink: 0;
+  font-size: 26rpx;
+  color: #ff4d4f;
+  padding: 8rpx 4rpx 8rpx 16rpx;
 }
 </style>
